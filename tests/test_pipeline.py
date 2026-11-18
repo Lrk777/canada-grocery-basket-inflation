@@ -61,5 +61,6 @@ def test_findings_are_internally_consistent():
     drivers = pd.read_csv(OUT / "ontario_drivers.csv")
     assert drivers.share_of_increase_pct.sum() == pytest.approx(100, abs=0.01)
     ranks = [r["rank_most_expensive"] for r in f["province_ranking"] if r["geo_name"] != "Canada"]
+    assert next(r for r in f["province_ranking"] if r["geo_name"] == "Canada")["rank_most_expensive"] is None
     assert sorted(ranks) == list(range(1, 11))
     assert f["ontario_annual_saving_smart"] >= f["ontario_annual_saving"]
