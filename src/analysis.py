@@ -29,7 +29,7 @@ def main() -> dict:
     # 1. Basket cost by province, base vs latest
     rank = q(con, "12_province_ranking.sql", b0=BASE[0], b1=BASE[1], l0=LATEST[0], l1=LATEST[1])
     rank.to_csv(OUT / "province_ranking.csv", index=False)
-    f["province_ranking"] = rank.to_dict(orient="records")
+    f["province_ranking"] = json.loads(rank.to_json(orient="records"))  # NaN -> null
 
     # Monthly basket series for the dashboard
     series = pd.read_sql("SELECT * FROM v_basket_cost WHERE complete = 1 ORDER BY date_key", con)
@@ -134,7 +134,7 @@ def main() -> dict:
         "in_basket_ontario": int(jumps[(jumps.geo_name == "Ontario") & jumps["product"].isin(BASKET)].shape[0])}
 
     con.close()
-    (OUT / "findings.json").write_text(json.dumps(f, indent=2, default=float))
+    (OUT / "findings.json").write_text(json.dumps(f, indent=2, default=float, allow_nan=False))
     return f
 
 
