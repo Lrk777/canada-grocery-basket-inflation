@@ -12,6 +12,14 @@ import pandas as pd
 from config import BASE, BASKET, LATEST, OUT, PROVINCES, ROOT, SWAPS, WEEKS_PER_YEAR
 
 
+def short(product: str) -> str:
+    """'Milk, 2 litres' -> 'Milk 2 L', 'Onions, per kilogram' -> 'Onions /kg' (for chart labels)."""
+    item, _, pack = product.partition(",")
+    pack = (pack.strip().replace("per kilogram", "/kg").replace(" kilograms", " kg").replace(" litres", " L")
+            .replace(" grams", " g").replace(" millilitres", " mL").replace("unit", "each"))
+    return f"{item.strip()} {pack}".strip()
+
+
 def build_data() -> dict:
     series = pd.read_csv(OUT / "basket_monthly.csv")
     std = series[series.scenario == "standard"]
@@ -37,7 +45,7 @@ def build_data() -> dict:
             "rank_growth": None if pd.isna(r.rank_fastest_growth) else int(r.rank_fastest_growth),
             "drivers": [{"item": p.split(",")[0], "pct": round(c, 1), "weekly": round(w, 2)}
                         for p, c, w in zip(it["product"], it.pct_chg, it.weekly_change)],
-            "swaps": [{"from": o.split(",")[0], "to": s_.split(",")[0], "note": n, "annual": round(a, 0)}
+            "swaps": [{"from": short(o), "to": short(s_), "note": n, "annual": round(a, 2)}
                       for o, s_, n, a in zip(sw.original, sw.substitute, sw.note, sw.annual_saving)],
         }
     data["missing_swaps_note"] = {"Newfoundland and Labrador": "4 L milk is not priced in NL, so that swap is left out."}
@@ -126,7 +134,7 @@ function lineChart(g) {
 }
 
 function hbars(target, rows, opts) {
-  const W = 480, bh = 18, gap = 6, m = {l: opts.left || 150, r: 64, t: 4, b: 6}, H = m.t + m.b + rows.length * (bh + gap);
+  const W = Math.max(420, Math.round($(target).clientWidth || 480)), bh = 18, gap = 6, m = {l: opts.left || 150, r: 64, t: 4, b: 6}, H = m.t + m.b + rows.length * (bh + gap);
   const vals = rows.map(r => r.v), mn = Math.min(0, ...vals), mx = Math.max(0, ...vals);
   const x = v => m.l + (v - mn) * (W - m.l - m.r) / ((mx - mn) || 1);
   const s = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.label});
@@ -134,7 +142,7 @@ function hbars(target, rows, opts) {
   rows.forEach((r, i) => { const yy = m.t + i * (bh + gap), x0 = x(Math.min(0, r.v)), w = Math.max(1, Math.abs(x(r.v) - x(0)));
     txt(s, m.l - 8, yy + bh * .72, r.label, {"text-anchor": "end", style: r.strong ? "fill:var(--ink);font-weight:600" : ""});
     const b = el("rect", {x: x0, y: yy, width: w, height: bh, rx: 3, fill: r.color, tabindex: 0}, s);
-    txt(s, r.v >= 0 ? x(r.v) + 5 : x(r.v) - 5, yy + bh * .72, opts.fmt(r.v), {"text-anchor": r.v >= 0 ? "start" : "end"});
+    txt(s, Math.max(x(r.v), x(0)) + 5, yy + bh * .72, opts.fmt(r.v), {"text-anchor": "start"});
     const on = ev => { b.setAttribute("opacity", .8); showTip(ev, r.label, [[r.color, opts.metric, opts.fmt(r.v)]].concat(r.extra || [])); };
     b.addEventListener("pointermove", on); b.addEventListener("focus", ev => on({clientX: b.getBoundingClientRect().right, clientY: b.getBoundingClientRect().top}));
     b.addEventListener("pointerleave", () => { b.setAttribute("opacity", 1); hideTip(); }); b.addEventListener("blur", hideTip); });
